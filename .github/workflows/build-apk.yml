@@ -1,0 +1,62 @@
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'StudioMobile-source.zip'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unpack Android project
+        run: |
+          test -f StudioMobile-source.zip
+          mkdir -p unpacked
+          unzip -q StudioMobile-source.zip -d unpacked
+          test -f unpacked/studio-android/settings.gradle
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11'
+
+      - name: Bundle FFmpeg WebAssembly files
+        working-directory: unpacked/studio-android
+        run: |
+          set -eux
+          mkdir -p app/src/main/assets/ffmpeg/core app/src/main/assets/ffmpeg/ffmpeg
+          npm pack @ffmpeg/core@0.12.10
+          tar -xzf ffmpeg-core-0.12.10.tgz
+          cp -R package/dist/esm/. app/src/main/assets/ffmpeg/core/
+          rm -rf package ffmpeg-core-0.12.10.tgz
+          npm pack @ffmpeg/ffmpeg@0.12.15
+          tar -xzf ffmpeg-0.12.15.tgz
+          cp -R package/dist/esm/. app/src/main/assets/ffmpeg/ffmpeg/
+          rm -rf package ffmpeg-0.12.15.tgz
+          test -f app/src/main/assets/ffmpeg/core/ffmpeg-core.js
+          test -f app/src/main/assets/ffmpeg/core/ffmpeg-core.wasm
+          test -f app/src/main/assets/ffmpeg/ffmpeg/index.js
+
+      - name: Build debug APK
+        working-directory: unpacked/studio-android
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudioMobile-debug
+          path: unpacked/studio-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
