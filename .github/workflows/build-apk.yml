@@ -42,8 +42,8 @@ jobs:
           tar -xzf ffmpeg-core-0.12.10.tgz
           cp -R package/dist/esm/. app/src/main/assets/ffmpeg/core/
           rm -rf package ffmpeg-core-0.12.10.tgz
-          npm pack @ffmpeg/ffmpeg@0.12.15
-          tar -xzf ffmpeg-0.12.15.tgz
+          FFMPEG_TGZ="$(npm pack --silent --pack-destination "$RUNNER_TEMP" @ffmpeg/ffmpeg@0.12.15)"
+          tar -xzf "$RUNNER_TEMP/$FFMPEG_TGZ"
           cp -R package/dist/esm/. app/src/main/assets/ffmpeg/ffmpeg/
           rm -rf package ffmpeg-0.12.15.tgz
           test -f app/src/main/assets/ffmpeg/core/ffmpeg-core.js
